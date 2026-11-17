@@ -1,0 +1,6 @@
+{
+  "name": "Vellum — E-Invoicing & IRN Studio",
+  "description": "Minimal-luxury e-invoicing platform with manual entry, spreadsheet import, cryptographic IRN generation, and brandable vector PDF export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

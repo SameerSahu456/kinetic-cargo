@@ -1,0 +1,421 @@
+import { BrandProfile, CurrencyCode, InvoiceData, ReceiptData, RecipientRecord } from '../types/invoice';
+
+export interface IndianState {
+  code: string;
+  name: string;
+}
+
+export const INDIAN_STATES: IndianState[] = [
+  { code: '01', name: 'Jammu & Kashmir' },
+  { code: '02', name: 'Himachal Pradesh' },
+  { code: '03', name: 'Punjab' },
+  { code: '04', name: 'Chandigarh' },
+  { code: '05', name: 'Uttarakhand' },
+  { code: '06', name: 'Haryana' },
+  { code: '07', name: 'Delhi' },
+  { code: '08', name: 'Rajasthan' },
+  { code: '09', name: 'Uttar Pradesh' },
+  { code: '10', name: 'Bihar' },
+  { code: '11', name: 'Sikkim' },
+  { code: '12', name: 'Arunachal Pradesh' },
+  { code: '13', name: 'Nagaland' },
+  { code: '14', name: 'Manipur' },
+  { code: '15', name: 'Mizoram' },
+  { code: '16', name: 'Tripura' },
+  { code: '17', name: 'Meghalaya' },
+  { code: '18', name: 'Assam' },
+  { code: '19', name: 'West Bengal' },
+  { code: '20', name: 'Jharkhand' },
+  { code: '21', name: 'Odisha' },
+  { code: '22', name: 'Chhattisgarh' },
+  { code: '23', name: 'Madhya Pradesh' },
+  { code: '24', name: 'Gujarat' },
+  { code: '26', name: 'Dadra & Nagar Haveli and Daman & Diu' },
+  { code: '27', name: 'Maharashtra' },
+  { code: '29', name: 'Karnataka' },
+  { code: '30', name: 'Goa' },
+  { code: '31', name: 'Lakshadweep' },
+  { code: '32', name: 'Kerala' },
+  { code: '33', name: 'Tamil Nadu' },
+  { code: '34', name: 'Puducherry' },
+  { code: '35', name: 'Andaman & Nicobar Islands' },
+  { code: '36', name: 'Telangana' },
+  { code: '37', name: 'Andhra Pradesh' },
+  { code: '38', name: 'Ladakh' },
+  { code: '96', name: 'Foreign Country (Export)' },
+];
+
+export const CURRENCY_CONFIG: Record<CurrencyCode, { symbol: string; pdfCode: string; label: string; locale: string; majorUnit: string; minorUnit: string }> = {
+  INR: { symbol: '₹', pdfCode: 'INR', label: 'INR — Indian Rupee', locale: 'en-IN', majorUnit: 'Rupees', minorUnit: 'Paise' },
+  USD: { symbol: '$', pdfCode: 'USD', label: 'USD — US Dollar', locale: 'en-US', majorUnit: 'Dollars', minorUnit: 'Cents' },
+  EUR: { symbol: '€', pdfCode: 'EUR', label: 'EUR — Euro', locale: 'en-IE', majorUnit: 'Euros', minorUnit: 'Cents' },
+  GBP: { symbol: '£', pdfCode: 'GBP', label: 'GBP — British Pound', locale: 'en-GB', majorUnit: 'Pounds', minorUnit: 'Pence' },
+  AED: { symbol: 'AED ', pdfCode: 'AED', label: 'AED — UAE Dirham', locale: 'en-AE', majorUnit: 'Dirhams', minorUnit: 'Fils' },
+};
+
+export const LUXURY_ACCENTS = [
+  { name: 'Obsidian', hex: '#1D1D1F' },
+  { name: 'Pacific Blue', hex: '#0071E3' },
+  { name: 'Deep Slate', hex: '#334155' },
+  { name: 'Forest', hex: '#1B4332' },
+  { name: 'Burgundy', hex: '#6B1D2F' },
+  { name: 'Warm Bronze', hex: '#7C5832' },
+];
+
+export const UNIT_OPTIONS = ['NOS', 'HRS', 'KGS', 'MTR', 'SET', 'PCS', 'BOX', 'SQF', 'DAY', 'MON'];
+export const TAX_SLABS = [0, 5, 12, 18, 28];
+
+export const DEFAULT_BRAND_PROFILE: BrandProfile = {
+  seller: {
+    legalName: 'Kinetic Cargo Logistics Pvt. Ltd.',
+    tradeName: 'Kinetic Cargo',
+    gstin: '27AABCK4829M1Z5',
+    pan: 'AABCK4829M',
+    address: 'Level 14, One BKC, Bandra Kurla Complex',
+    city: 'Mumbai',
+    stateCode: '27',
+    stateName: 'Maharashtra',
+    pincode: '400051',
+    email: 'billing@kineticcargo.in',
+    phone: '+91 22 6842 9100',
+  },
+  bank: {
+    bankName: 'State Bank of India',
+    accountName: 'SUPER KINETIC',
+    accountNumber: '42304360820',
+    ifscCode: 'SBIN0006967',
+    branch: '',
+    upiId: '',
+  },
+  logoDataUrl: null,
+  monogramId: 'prism',
+  accentColor: '#1D1D1F',
+  templateId: 'gst-standard',
+  signatoryName: 'Arjun Malhotra',
+  signatoryTitle: 'Director of Finance',
+  signatureDataUrl: null,
+  defaultTerms: '1. Payment is due within 15 days from the invoice issue date via NEFT, RTGS, or UPI.\n2. Please quote the Invoice Number and IRN in all remittance advice.\n3. Subject to Mumbai jurisdiction. Interest @ 18% p.a. applies on overdue balances.',
+  defaultNotes: 'Thank you for shipping with Kinetic Cargo.',
+  footerTagline: 'Digitally generated tax invoice compliant with e-Invoicing IRP schema',
+};
+
+export function createSampleInvoice(brand: BrandProfile): InvoiceData {
+  const today = new Date();
+  const due = new Date(today.getTime() + 15 * 86400000);
+  const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+
+  return {
+    id: `inv-${Date.now()}`,
+    docType: 'INV',
+    supplyType: 'B2B',
+    invoiceNumber: 'KC/26-27/0104',
+    financialYear: '2026-27',
+    issueDate: isoDate(today),
+    dueDate: isoDate(due),
+    poNumber: 'PO-KRV-8842',
+    currency: 'INR',
+    reverseCharge: false,
+    placeOfSupplyCode: '29',
+    placeOfSupplyName: 'Karnataka',
+    seller: { ...brand.seller },
+    buyer: {
+      legalName: 'Kora Ventures India Pvt. Ltd.',
+      tradeName: 'Kora Ventures',
+      gstin: '29AAACK9012B1Z8',
+      pan: 'AAACK9012B',
+      address: '420, 100 Feet Road, Indiranagar',
+      city: 'Bengaluru',
+      stateCode: '29',
+      stateName: 'Karnataka',
+      pincode: '560038',
+      email: 'ap@koraventures.co',
+      phone: '+91 80 4120 7780',
+    },
+    dispatch: {
+      enabled: false,
+      shipToName: 'Kora Ventures Fulfillment Hub',
+      shipToAddress: 'Plot 18, Whitefield Industrial Area',
+      shipToCity: 'Bengaluru',
+      shipToStateCode: '29',
+      shipToStateName: 'Karnataka',
+      shipToPincode: '560066',
+      transporterName: 'Blue Dart Express',
+      transporterId: '27AAACB0446L1ZU',
+      transportMode: 'Air',
+      vehicleNumber: 'MH-01-DK-4821',
+      ewayBillNo: '',
+    },
+    items: [
+      {
+        id: 'item-1',
+        name: 'Enterprise Design System Architecture',
+        description: 'Multi-platform token pipeline, Figma library & React component suite',
+        hsnCode: '998314',
+        isService: true,
+        quantity: 1,
+        unit: 'NOS',
+        unitPrice: 240000,
+        discountPercent: 0,
+        taxRate: 18,
+        cessRate: 0,
+      },
+      {
+        id: 'item-2',
+        name: 'Dedicated Engineering Retainer',
+        description: 'Frontend performance optimization & accessibility audit (Q3 Milestone)',
+        hsnCode: '998313',
+        isService: true,
+        quantity: 40,
+        unit: 'HRS',
+        unitPrice: 4500,
+        discountPercent: 5,
+        taxRate: 18,
+        cessRate: 0,
+      },
+      {
+        id: 'item-3',
+        name: 'Annual Platform License & SLA',
+        description: 'Priority technical support & cloud telemetry hosting',
+        hsnCode: '997331',
+        isService: true,
+        quantity: 1,
+        unit: 'NOS',
+        unitPrice: 60000,
+        discountPercent: 0,
+        taxRate: 18,
+        cessRate: 0,
+      },
+    ],
+    bank: { ...brand.bank },
+    notes: brand.defaultNotes,
+    terms: brand.defaultTerms,
+    autoRoundOff: true,
+    irn: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    source: 'manual',
+  };
+}
+
+export const CENTAUR_OCT_2026_INVOICE_ID = 'inv-centaur-0934';
+
+/**
+ * Invoice 0934 to Centaur Pharmaceuticals, transcribed from
+ * "CENTAUR BILL OCTOBER_BILL - Copy.docx" (October 2026 courier bill).
+ * Only the shipment rows present in that document are included.
+ */
+export function createCentaurOctoberInvoice(brand: BrandProfile): InvoiceData {
+  const shipment = (
+    n: number,
+    bookingDate: string,
+    awb: string,
+    consignee: string,
+    destination: string,
+    weight: string,
+    mode: string,
+    pcs: number,
+    amount: number
+  ): InvoiceData['items'][number] => ({
+    id: `centaur-0934-item-${n}`,
+    name: `AWB ${awb} - ${consignee}, ${destination}`,
+    description: `Booking date ${bookingDate} · Mode ${mode} · Weight ${weight} · ${pcs} pc`,
+    hsnCode: '996812',
+    isService: true,
+    quantity: pcs,
+    unit: 'PCS',
+    unitPrice: amount / pcs,
+    discountPercent: 0,
+    taxRate: 18,
+    cessRate: 0,
+  });
+
+  const shipments = [
+    shipment(1, '01/10/26', '36398450281', 'GOI', 'GWALIOR', 'MM', 'AIR', 1, 145),
+    shipment(2, '01/10/26', '36398450270', 'HARI PRAKASH', 'GWALIOR', 'MM', 'AIR', 1, 145),
+  ];
+  const freightTotal = shipments.reduce((sum, s) => sum + s.quantity * s.unitPrice, 0);
+
+  return {
+    id: CENTAUR_OCT_2026_INVOICE_ID,
+    docType: 'INV',
+    supplyType: 'B2B',
+    invoiceNumber: '0934',
+    financialYear: '2026-27',
+    issueDate: '2026-11-01',
+    dueDate: '2026-11-16',
+    poNumber: '',
+    awbNumber: '',
+    otherReferences: 'Courier bill - October 2026',
+    currency: 'INR',
+    reverseCharge: false,
+    placeOfSupplyCode: '27',
+    placeOfSupplyName: 'Maharashtra',
+    seller: {
+      legalName: 'SUPER KINETIC',
+      tradeName: 'Super Kinetic',
+      gstin: '27CJWPJ9592B1ZI',
+      pan: 'CJWPJ9592B',
+      address: '',
+      city: '',
+      stateCode: '27',
+      stateName: 'Maharashtra',
+      pincode: '',
+      email: '',
+      phone: '',
+    },
+    buyer: {
+      legalName: 'Centaur Pharmaceuticals Pvt. Ltd.',
+      tradeName: 'Centaur Pharmaceuticals',
+      gstin: '27AAACC0444K1ZV',
+      pan: 'AAACC0444K',
+      address: 'Centaur House, Santacruz East',
+      city: 'Mumbai',
+      stateCode: '27',
+      stateName: 'Maharashtra',
+      pincode: '',
+      email: '',
+      phone: '',
+    },
+    dispatch: {
+      enabled: false,
+      shipToName: '',
+      shipToAddress: '',
+      shipToCity: '',
+      shipToStateCode: '27',
+      shipToStateName: 'Maharashtra',
+      shipToPincode: '',
+      transporterName: '',
+      transporterId: '',
+      transportMode: 'Air',
+      vehicleNumber: '',
+      ewayBillNo: '',
+    },
+    items: [
+      ...shipments,
+      {
+        id: 'centaur-0934-fuel',
+        name: 'F.Charges (Fuel Charges @ 20% of freight)',
+        description: '',
+        hsnCode: '996812',
+        isService: true,
+        quantity: 1,
+        unit: 'NOS',
+        // The bill charges 2,433.00 on a 12,165.00 freight total, i.e. 20%.
+        unitPrice: Math.round(freightTotal * 0.2 * 100) / 100,
+        discountPercent: 0,
+        taxRate: 18,
+        cessRate: 0,
+      },
+    ],
+    bank: { ...brand.bank },
+    notes: '',
+    terms: '',
+    autoRoundOff: true,
+    irn: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    source: 'manual',
+  };
+}
+
+export const DEFAULT_RECIPIENTS: RecipientRecord[] = [
+  {
+    id: 'rcp-1',
+    legalName: 'Kora Ventures India Pvt. Ltd.',
+    tradeName: 'Kora Ventures',
+    gstin: '29AAACK9012B1Z8',
+    pan: 'AAACK9012B',
+    address: '420, 100 Feet Road, Indiranagar',
+    city: 'Bengaluru',
+    stateCode: '29',
+    stateName: 'Karnataka',
+    pincode: '560038',
+    email: 'ap@koraventures.co',
+    phone: '+91 80 4120 7780',
+    contactPerson: 'Meera Nair',
+    creditDays: 15,
+    notes: 'Priority freight & enterprise retainer account',
+    createdAt: '2026-10-01T10:00:00.000Z',
+    updatedAt: '2026-10-01T10:00:00.000Z',
+  },
+  {
+    id: 'rcp-2',
+    legalName: 'Solstice Hospitality Group Pvt. Ltd.',
+    tradeName: 'Solstice Group',
+    gstin: '27AABCS4102M1Z2',
+    pan: 'AABCS4102M',
+    address: '18 Marine Drive, Nariman Point',
+    city: 'Mumbai',
+    stateCode: '27',
+    stateName: 'Maharashtra',
+    pincode: '400021',
+    email: 'finance@solsticegroup.in',
+    phone: '+91 22 4910 3320',
+    contactPerson: 'Rohan Deshmukh',
+    creditDays: 30,
+    notes: 'Monthly consolidated dispatch billing',
+    createdAt: '2026-10-05T11:30:00.000Z',
+    updatedAt: '2026-10-05T11:30:00.000Z',
+  },
+  {
+    id: 'rcp-3',
+    legalName: 'Aurelia Biotech Labs Ltd.',
+    tradeName: 'Aurelia Biotech',
+    gstin: '29AAACA8821D1Z9',
+    pan: 'AAACA8821D',
+    address: 'Plot 42, Electronic City Phase 2',
+    city: 'Bengaluru',
+    stateCode: '29',
+    stateName: 'Karnataka',
+    pincode: '560100',
+    email: 'accounts@aureliabiotech.com',
+    phone: '+91 80 6720 4410',
+    contactPerson: 'Dr. Kavita Rao',
+    creditDays: 15,
+    notes: 'Cold-chain priority logistics',
+    createdAt: '2026-10-12T09:15:00.000Z',
+    updatedAt: '2026-10-12T09:15:00.000Z',
+  },
+];
+
+export function createSampleReceipt(
+  brand: BrandProfile,
+  recipient?: RecipientRecord,
+  linkedInvoice?: { invoiceNumber: string; irn?: string; total: number; currency: CurrencyCode }
+): ReceiptData {
+  const today = new Date().toISOString().slice(0, 10);
+  const targetRecipient = recipient || DEFAULT_RECIPIENTS[0];
+  const invoiceTotal = linkedInvoice ? linkedInvoice.total : 555780;
+
+  return {
+    id: `rcpt-${Date.now()}`,
+    receiptNumber: 'RCPT/26-27/0041',
+    receiptDate: today,
+    currency: linkedInvoice?.currency || 'INR',
+    paymentMode: 'NEFT / RTGS',
+    referenceNumber: 'HDFCR52026111700849210',
+    linkedInvoiceNumber: linkedInvoice?.invoiceNumber || 'KC/26-27/0104',
+    linkedIrn: linkedInvoice?.irn || '',
+    invoiceTotal,
+    amountReceived: invoiceTotal,
+    tdsDeducted: 0,
+    seller: { ...brand.seller },
+    recipient: {
+      legalName: targetRecipient.legalName,
+      tradeName: targetRecipient.tradeName,
+      gstin: targetRecipient.gstin,
+      pan: targetRecipient.pan,
+      address: targetRecipient.address,
+      city: targetRecipient.city,
+      stateCode: targetRecipient.stateCode,
+      stateName: targetRecipient.stateName,
+      pincode: targetRecipient.pincode,
+      email: targetRecipient.email,
+      phone: targetRecipient.phone,
+    },
+    bank: { ...brand.bank },
+    remarks: 'Received with thanks against freight & service invoice settlement.',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
