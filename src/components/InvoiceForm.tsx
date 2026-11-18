@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Trash2, Copy, ChevronDown, CheckCircle2, AlertCircle, UserPlus, Check } from 'lucide-react';
-import { CURRENCY_CONFIG, INDIAN_STATES, TAX_SLABS, UNIT_OPTIONS } from '../data/presets';
-import { CurrencyCode, DocumentType, InvoiceData, LineItem, RecipientRecord, SupplyType } from '../types/invoice';
-import { getFinancialYear, validateGstin } from '../utils/invoiceMath';
+import { ChevronDown, CheckCircle2, AlertCircle, UserPlus, Check } from 'lucide-react';
+import { INDIAN_STATES } from '../data/presets';
+import { InvoiceData, RecipientRecord } from '../types/invoice';
+import { getFinancialYear, isShipmentInvoice, validateGstin } from '../utils/invoiceMath';
+import { ShipmentEditor } from './ShipmentEditor';
 
 interface InvoiceFormProps {
   invoice: InvoiceData;
@@ -12,7 +13,7 @@ interface InvoiceFormProps {
   onSaveToRecipientMaster?: (buyer: InvoiceData['buyer']) => void;
 }
 
-type SectionKey = 'document' | 'buyer' | 'items' | 'dispatch' | 'settlement';
+type SectionKey = 'document' | 'buyer' | 'items' | 'settlement';
 
 const INPUT_CLASS =
   'w-full px-3 py-2 text-[13px] bg-white border border-black/[0.1] rounded-lg text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/15 transition-all duration-150';
@@ -65,51 +66,18 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     updateBuyer(patch);
   };
 
-  const updateItem = (id: string, patch: Partial<LineItem>) => {
-    const nextItems = invoice.items.map((it) => (it.id === id ? { ...it, ...patch } : it));
-    updateField('items', nextItems);
-  };
-
-  const addItem = () => {
-    const newItem: LineItem = {
-      id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      name: '',
-      description: '',
-      hsnCode: '998314',
-      isService: true,
-      quantity: 1,
-      unit: 'NOS',
-      unitPrice: 0,
-      discountPercent: 0,
-      taxRate: 18,
-      cessRate: 0,
-    };
-    updateField('items', [...invoice.items, newItem]);
-  };
-
-  const duplicateItem = (item: LineItem) => {
-    const copy: LineItem = {
-      ...item,
-      id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    };
-    updateField('items', [...invoice.items, copy]);
-  };
-
-  const removeItem = (id: string) => {
-    if (invoice.items.length <= 1) return;
-    updateField(
-      'items',
-      invoice.items.filter((it) => it.id !== id)
-    );
-  };
-
   const buyerGstinCheck = validateGstin(invoice.buyer.gstin);
+  const shipmentMode = isShipmentInvoice(invoice);
+  const shipmentCount = invoice.shipments?.length ?? 0;
+
+  const patchInvoice = (patch: Partial<InvoiceData>) =>
+    onChange({ ...invoice, ...patch, updatedAt: new Date().toISOString() });
 
   const sections: { key: SectionKey; title: string; summary: string }[] = [
     {
       key: 'document',
       title: '01. Document & Supply',
-      summary: `${invoice.invoiceNumber} · ${invoice.supplyType} · ${invoice.currency}`,
+      summary: `Tax Invoice · ${invoice.invoiceNumber}`,
     },
     {
       key: 'buyer',
@@ -118,17 +86,12 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     },
     {
       key: 'items',
-      title: '03. Line Items & Taxes',
-      summary: `${invoice.items.length} ${invoice.items.length === 1 ? 'item' : 'items'}`,
-    },
-    {
-      key: 'dispatch',
-      title: '04. Dispatch & E-Way Bill',
-      summary: invoice.dispatch.enabled ? `${invoice.dispatch.transportMode} · Enabled` : 'Optional',
+      title: '03. Shipments (AWB-wise) & Taxes',
+      summary: shipmentMode ? `${shipmentCount} AWB` : `${invoice.items.length} line items (legacy)`,
     },
     {
       key: 'settlement',
-      title: '05. Banking, Notes & Terms',
+      title: '04. Banking, Notes & Terms',
       summary: invoice.bank.bankName || 'Settlement account',
     },
   ];
@@ -171,36 +134,6 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                     <>
                       <div className="grid grid-cols-2 gap-3.5">
                         <div>
-                          <label className={LABEL_CLASS}>Document Type</label>
-                          <select
-                            value={invoice.docType}
-                            onChange={(e) => updateField('docType', e.target.value as DocumentType)}
-                            className={INPUT_CLASS}
-                          >
-                            <option value="INV">Tax Invoice (INV)</option>
-                            <option value="CRN">Credit Note (CRN)</option>
-                            <option value="DBN">Debit Note (DBN)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className={LABEL_CLASS}>Supply Type</label>
-                          <select
-                            value={invoice.supplyType}
-                            onChange={(e) => updateField('supplyType', e.target.value as SupplyType)}
-                            className={INPUT_CLASS}
-                          >
-                            <option value="B2B">B2B (Regular Taxable)</option>
-                            <option value="SEZWP">SEZ With Payment</option>
-                            <option value="SEZWOP">SEZ Without Payment</option>
-                            <option value="EXPWP">Export With Payment</option>
-                            <option value="EXPWOP">Export Without Payment</option>
-                            <option value="DEXP">Deemed Export</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3.5">
-                        <div>
                           <label className={LABEL_CLASS}>Invoice Number</label>
                           <input
                             type="text"
@@ -222,7 +155,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-3.5">
+                      <div className="grid grid-cols-2 gap-3.5">
                         <div>
                           <label className={LABEL_CLASS}>Issue Date</label>
                           <input
@@ -249,77 +182,17 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                             className={`${INPUT_CLASS} tabular-nums`}
                           />
                         </div>
-                        <div>
-                          <label className={LABEL_CLASS}>Currency</label>
-                          <select
-                            value={invoice.currency}
-                            onChange={(e) => updateField('currency', e.target.value as CurrencyCode)}
-                            className={INPUT_CLASS}
-                          >
-                            {Object.entries(CURRENCY_CONFIG).map(([code, cfg]) => (
-                              <option key={code} value={code}>
-                                {cfg.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3.5">
-                        <div>
-                          <label className={LABEL_CLASS}>Mode / Terms of Payment</label>
-                          <input
-                            type="text"
-                            value={invoice.paymentTerms ?? ''}
-                            onChange={(e) => updateField('paymentTerms', e.target.value)}
-                            className={INPUT_CLASS}
-                            placeholder="15 Days / NEFT"
-                          />
-                        </div>
-                        <div>
-                          <label className={LABEL_CLASS}>Delivery Note</label>
-                          <input
-                            type="text"
-                            value={invoice.deliveryNote ?? ''}
-                            onChange={(e) => updateField('deliveryNote', e.target.value)}
-                            className={INPUT_CLASS}
-                            placeholder="DN-2026-014"
-                          />
-                        </div>
                       </div>
 
                       <div>
-                        <label className={LABEL_CLASS}>AWB No. (Air Waybill)</label>
+                        <label className={LABEL_CLASS}>Mode / Terms of Payment</label>
                         <input
                           type="text"
-                          value={invoice.awbNumber ?? ''}
-                          onChange={(e) => updateField('awbNumber', e.target.value)}
+                          value={invoice.paymentTerms ?? ''}
+                          onChange={(e) => updateField('paymentTerms', e.target.value)}
                           className={INPUT_CLASS}
-                          placeholder="e.g. 176-1234 5675"
+                          placeholder="15 Days / NEFT"
                         />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3.5">
-                        <div>
-                          <label className={LABEL_CLASS}>Other References</label>
-                          <input
-                            type="text"
-                            value={invoice.otherReferences ?? ''}
-                            onChange={(e) => updateField('otherReferences', e.target.value)}
-                            className={INPUT_CLASS}
-                            placeholder="Contract / LR Ref"
-                          />
-                        </div>
-                        <div>
-                          <label className={LABEL_CLASS}>Terms of Delivery</label>
-                          <input
-                            type="text"
-                            value={invoice.termsOfDelivery ?? ''}
-                            onChange={(e) => updateField('termsOfDelivery', e.target.value)}
-                            className={INPUT_CLASS}
-                            placeholder="Ex-Works / Door Delivery"
-                          />
-                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3.5 items-end">
@@ -556,273 +429,18 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                   )}
 
                   {sec.key === 'items' && (
-                    <div className="space-y-3.5">
-                      {invoice.items.map((item, index) => (
-                        <div
-                          key={item.id}
-                          className="p-3.5 rounded-xl bg-[#FAFAFC] border border-black/[0.07] space-y-3"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-mono text-[11px] font-medium text-[#86868B]">
-                              Item {String(index + 1).padStart(2, '0')}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => duplicateItem(item)}
-                                title="Duplicate line item"
-                                className="p-1.5 rounded-md text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.05] transition-colors cursor-pointer"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => removeItem(item.id)}
-                                disabled={invoice.items.length <= 1}
-                                title="Remove line item"
-                                className="p-1.5 rounded-md text-[#6E6E73] hover:text-red-600 hover:bg-red-50 disabled:opacity-30 transition-colors cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-12 gap-2.5">
-                            <div className="col-span-8">
-                              <label className={LABEL_CLASS}>Item / Service Name</label>
-                              <input
-                                type="text"
-                                value={item.name}
-                                onChange={(e) => updateItem(item.id, { name: e.target.value })}
-                                className={INPUT_CLASS}
-                                placeholder="e.g., Enterprise Design System"
-                              />
-                            </div>
-                            <div className="col-span-4">
-                              <label className={LABEL_CLASS}>HSN / SAC</label>
-                              <input
-                                type="text"
-                                value={item.hsnCode}
-                                onChange={(e) => updateItem(item.id, { hsnCode: e.target.value })}
-                                className={`${INPUT_CLASS} font-mono`}
-                                placeholder="998314"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <input
-                              type="text"
-                              value={item.description || ''}
-                              onChange={(e) => updateItem(item.id, { description: e.target.value })}
-                              className={INPUT_CLASS}
-                              placeholder="Optional scope or technical specification"
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-5 gap-2.5">
-                            <div>
-                              <label className={LABEL_CLASS}>Qty</label>
-                              <input
-                                type="number"
-                                min="0"
-                                step="any"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateItem(item.id, { quantity: parseFloat(e.target.value) || 0 })
-                                }
-                                className={`${INPUT_CLASS} tabular-nums text-right`}
-                              />
-                            </div>
-                            <div>
-                              <label className={LABEL_CLASS}>Unit</label>
-                              <select
-                                value={item.unit}
-                                onChange={(e) => updateItem(item.id, { unit: e.target.value })}
-                                className={INPUT_CLASS}
-                              >
-                                {UNIT_OPTIONS.map((u) => (
-                                  <option key={u} value={u}>
-                                    {u}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className={LABEL_CLASS}>Rate</label>
-                              <input
-                                type="number"
-                                min="0"
-                                step="any"
-                                value={item.unitPrice}
-                                onChange={(e) =>
-                                  updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })
-                                }
-                                className={`${INPUT_CLASS} tabular-nums text-right`}
-                              />
-                            </div>
-                            <div>
-                              <label className={LABEL_CLASS}>Disc %</label>
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="any"
-                                value={item.discountPercent}
-                                onChange={(e) =>
-                                  updateItem(item.id, {
-                                    discountPercent: parseFloat(e.target.value) || 0,
-                                  })
-                                }
-                                className={`${INPUT_CLASS} tabular-nums text-right`}
-                              />
-                            </div>
-                            <div>
-                              <label className={LABEL_CLASS}>GST %</label>
-                              <select
-                                value={item.taxRate}
-                                onChange={(e) =>
-                                  updateItem(item.id, { taxRate: parseFloat(e.target.value) || 0 })
-                                }
-                                className={`${INPUT_CLASS} tabular-nums`}
-                              >
-                                {TAX_SLABS.map((slab) => (
-                                  <option key={slab} value={slab}>
-                                    {slab}%
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-
-                      <button
-                        type="button"
-                        onClick={addItem}
-                        className="w-full py-2.5 rounded-xl border border-dashed border-black/20 text-[13px] font-medium text-[#1D1D1F] hover:bg-[#FAFAFC] hover:border-black/35 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>Add Line Item</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {sec.key === 'dispatch' && (
-                    <div className="space-y-4">
-                      <label className="inline-flex items-center gap-2.5 text-[13px] font-medium text-[#1D1D1F] cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={invoice.dispatch.enabled}
-                          onChange={(e) =>
-                            updateField('dispatch', {
-                              ...invoice.dispatch,
-                              enabled: e.target.checked,
-                            })
-                          }
-                          className="rounded border-black/20 text-[#1D1D1F] focus:ring-[#0071E3]"
-                        />
-                        <span>Include Separate Ship-To &amp; E-Way Bill Logistics</span>
-                      </label>
-
-                      {invoice.dispatch.enabled && (
-                        <div className="space-y-3.5 pt-1">
-                          <div className="grid grid-cols-2 gap-3.5">
-                            <div>
-                              <label className={LABEL_CLASS}>Ship-To Consignee Name</label>
-                              <input
-                                type="text"
-                                value={invoice.dispatch.shipToName}
-                                onChange={(e) =>
-                                  updateField('dispatch', {
-                                    ...invoice.dispatch,
-                                    shipToName: e.target.value,
-                                  })
-                                }
-                                className={INPUT_CLASS}
-                              />
-                            </div>
-                            <div>
-                              <label className={LABEL_CLASS}>Ship-To City</label>
-                              <input
-                                type="text"
-                                value={invoice.dispatch.shipToCity}
-                                onChange={(e) =>
-                                  updateField('dispatch', {
-                                    ...invoice.dispatch,
-                                    shipToCity: e.target.value,
-                                  })
-                                }
-                                className={INPUT_CLASS}
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className={LABEL_CLASS}>Ship-To Street Address</label>
-                            <input
-                              type="text"
-                              value={invoice.dispatch.shipToAddress}
-                              onChange={(e) =>
-                                updateField('dispatch', {
-                                  ...invoice.dispatch,
-                                  shipToAddress: e.target.value,
-                                })
-                              }
-                              className={INPUT_CLASS}
-                            />
-                          </div>
-                          <div className="grid grid-cols-3 gap-3.5">
-                            <div>
-                              <label className={LABEL_CLASS}>Mode</label>
-                              <select
-                                value={invoice.dispatch.transportMode}
-                                onChange={(e) =>
-                                  updateField('dispatch', {
-                                    ...invoice.dispatch,
-                                    transportMode: e.target.value as InvoiceData['dispatch']['transportMode'],
-                                  })
-                                }
-                                className={INPUT_CLASS}
-                              >
-                                <option value="Road">Road</option>
-                                <option value="Air">Air</option>
-                                <option value="Rail">Rail</option>
-                                <option value="Ship">Ship</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className={LABEL_CLASS}>Vehicle / Doc No.</label>
-                              <input
-                                type="text"
-                                value={invoice.dispatch.vehicleNumber}
-                                onChange={(e) =>
-                                  updateField('dispatch', {
-                                    ...invoice.dispatch,
-                                    vehicleNumber: e.target.value,
-                                  })
-                                }
-                                className={`${INPUT_CLASS} font-mono uppercase`}
-                              />
-                            </div>
-                            <div>
-                              <label className={LABEL_CLASS}>E-Way Bill No.</label>
-                              <input
-                                type="text"
-                                value={invoice.dispatch.ewayBillNo}
-                                onChange={(e) =>
-                                  updateField('dispatch', {
-                                    ...invoice.dispatch,
-                                    ewayBillNo: e.target.value,
-                                  })
-                                }
-                                className={`${INPUT_CLASS} font-mono`}
-                                placeholder="12-digit EWB"
-                              />
-                            </div>
-                          </div>
-                        </div>
+                    <>
+                      {!shipmentMode && (
+                        <p className="px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-200/80 text-[12px] text-amber-900">
+                          This invoice was created with line items and still bills from them.
+                          Adding shipments here converts it to AWB-wise billing.
+                        </p>
                       )}
-                    </div>
+                      <ShipmentEditor
+                        invoice={invoice}
+                        onPatch={(patch) => patchInvoice({ ...patch, billingMode: 'shipments' })}
+                      />
+                    </>
                   )}
 
                   {sec.key === 'settlement' && (

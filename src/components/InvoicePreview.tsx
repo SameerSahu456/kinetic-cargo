@@ -7,8 +7,10 @@ import {
   formatMoney,
   formatShortDate,
   groupItemsByHsn,
+  isShipmentInvoice,
   numberToCurrencyWords,
 } from '../utils/invoiceMath';
+import { ShipmentInvoiceSheet } from './ShipmentInvoiceSheet';
 import { computeInvoiceFingerprint } from '../utils/irnGenerator';
 
 interface InvoicePreviewProps {
@@ -37,7 +39,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({
     <div className="flex flex-col h-full">
       {/* Preview Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-white/80 backdrop-blur-md border-b border-black/[0.06] shrink-0">
-        <span className="text-[12px] font-medium text-[#6E6E73]">GST e-Invoice</span>
+        <span className="text-[12px] font-medium text-[#6E6E73]">
+          {isShipmentInvoice(invoice) ? 'AWB-wise Tax Invoice' : 'GST e-Invoice'}
+        </span>
 
         <div className="flex items-center gap-1.5">
           <button
@@ -124,6 +128,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({
                   </span>
                 </div>
               )}
+              {isShipmentInvoice(invoice) ? (
+                <ShipmentInvoiceSheet invoice={invoice} brand={brand} />
+              ) : (
               <div className="p-9 flex-1 flex flex-col justify-between text-[11.5px] text-[#141416] leading-snug">
                 <div>
                   {/* Top Title + e-Invoice IRN / QR Header */}
@@ -240,7 +247,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({
                         </div>
                       </div>
 
-                      {/* Right 50%: Metadata Grid + Terms of Delivery */}
+                      {/* Right 50%: Metadata Grid */}
                       <div className="flex flex-col">
                         <div className="grid grid-cols-2 divide-x divide-[#28282C] border-b border-[#28282C]">
                           <div className="px-2 py-1.5">
@@ -257,74 +264,23 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({
 
                         <div className="grid grid-cols-2 divide-x divide-[#28282C] border-b border-[#28282C]">
                           <div className="px-2 py-1.5 min-h-[38px]">
-                            <p className="text-[10px] text-[#3A3A3E]">Delivery Note</p>
-                            <p className="text-[11px] mt-0.5">{invoice.deliveryNote || ''}</p>
-                          </div>
-                          <div className="px-2 py-1.5 min-h-[38px]">
                             <p className="text-[10px] text-[#3A3A3E]">Mode/Terms of Payment</p>
                             <p className="text-[11px] mt-0.5">
                               {invoice.paymentTerms || '15 Days / NEFT'}
                             </p>
                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 divide-x divide-[#28282C] border-b border-[#28282C]">
                           <div className="px-2 py-1.5 min-h-[38px]">
                             <p className="text-[10px] text-[#3A3A3E]">Reference No. &amp; Date.</p>
                             <p className="text-[11px] mt-0.5">{invoice.poNumber || ''}</p>
                           </div>
-                          <div className="px-2 py-1.5 min-h-[38px]">
-                            <p className="text-[10px] text-[#3A3A3E]">Other References</p>
-                            <p className="text-[11px] mt-0.5">{invoice.otherReferences || ''}</p>
-                          </div>
                         </div>
 
                         <div className="grid grid-cols-2 divide-x divide-[#28282C] border-b border-[#28282C]">
-                          <div className="px-2 py-1.5 min-h-[38px]">
-                            <p className="text-[10px] text-[#3A3A3E]">Buyer&apos;s Order No.</p>
-                            <p className="text-[11px] mt-0.5">{invoice.poNumber || ''}</p>
-                          </div>
-                          <div className="px-2 py-1.5 min-h-[38px]">
-                            <p className="text-[10px] text-[#3A3A3E]">Dated</p>
-                            <p className="text-[11px] mt-0.5">
-                              {invoice.poNumber ? formatShortDate(invoice.issueDate) : ''}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 divide-x divide-[#28282C] border-b border-[#28282C]">
-                          <div className="px-2 py-1.5 min-h-[38px]">
-                            <p className="text-[10px] text-[#3A3A3E]">AWB No.</p>
-                            <p className="font-bold text-[11.5px] mt-0.5">{invoice.awbNumber || ''}</p>
-                          </div>
                           <div className="px-2 py-1.5 min-h-[38px]">
                             <p className="text-[10px] text-[#3A3A3E]">Dispatch Doc No.</p>
                             <p className="text-[11px] mt-0.5">{invoice.dispatch.ewayBillNo || ''}</p>
                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 divide-x divide-[#28282C] border-b border-[#28282C]">
-                          <div className="px-2 py-1.5 min-h-[38px]">
-                            <p className="text-[10px] text-[#3A3A3E]">Dispatched through</p>
-                            <p className="text-[11px] mt-0.5">
-                              {invoice.dispatch.enabled
-                                ? [invoice.dispatch.transportMode, invoice.dispatch.vehicleNumber]
-                                    .filter(Boolean)
-                                    .join(' · ')
-                                : ''}
-                            </p>
-                          </div>
-                          <div className="px-2 py-1.5 min-h-[38px]">
-                            <p className="text-[10px] text-[#3A3A3E]">Destination</p>
-                            <p className="text-[11px] mt-0.5">{invoice.buyer.city}</p>
-                          </div>
-                        </div>
-
-                        <div className="px-2 py-1.5 flex-1">
-                          <p className="text-[10px] text-[#3A3A3E]">Terms of Delivery</p>
-                          <p className="text-[11px] mt-0.5">
-                            {invoice.termsOfDelivery || invoice.notes}
-                          </p>
+                          <div className="px-2 py-1.5 min-h-[38px]" />
                         </div>
                       </div>
                     </div>
@@ -634,6 +590,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({
                   This is a Computer Generated Invoice
                 </p>
               </div>
+              )}
           </div>
         </motion.div>
       </div>

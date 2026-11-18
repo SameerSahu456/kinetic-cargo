@@ -10,3 +10,4 @@ coverage/
 # Customer documents and local tool artifacts stay out of the repo
 *.docx
 .aistudio/
+.vercel

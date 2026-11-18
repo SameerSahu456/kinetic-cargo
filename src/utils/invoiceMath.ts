@@ -1,8 +1,138 @@
 import { CURRENCY_CONFIG } from '../data/presets';
-import { ComputedLineItem, CurrencyCode, InvoiceData, InvoiceTotals } from '../types/invoice';
+import {
+  ComputedLineItem,
+  CurrencyCode,
+  InvoiceData,
+  InvoiceTotals,
+  LineItem,
+  ShipmentCharges,
+  ShipmentRow,
+} from '../types/invoice';
 
 export function round2(val: number): number {
   return Math.round((val + Number.EPSILON) * 100) / 100;
+}
+
+export const DEFAULT_SHIPMENT_HSN = '996812';
+
+export const EMPTY_SHIPMENT_CHARGES: ShipmentCharges = {
+  other: 0,
+  fov: 0,
+  oda: 0,
+  fuelPercent: 0,
+  docket: 0,
+};
+
+export function isShipmentInvoice(invoice: InvoiceData): boolean {
+  return invoice.billingMode === 'shipments';
+}
+
+export function createShipmentRow(patch: Partial<ShipmentRow> = {}): ShipmentRow {
+  return {
+    id: `shp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    bookDate: '',
+    awbNo: '',
+    bookingBranch: '',
+    destination: '',
+    mode: '',
+    pcs: 1,
+    actualWeight: 0,
+    chargedWeight: 0,
+    rate: 0,
+    vehicleCharges: 0,
+    amount: 0,
+    ...patch,
+  };
+}
+
+export interface ShipmentSummary {
+  rows: ShipmentRow[];
+  totalPcs: number;
+  totalActualWeight: number;
+  totalChargedWeight: number;
+  totalVehicleCharges: number;
+  freightTotal: number;
+  other: number;
+  fov: number;
+  oda: number;
+  fuelPercent: number;
+  fuelAmount: number;
+  docket: number;
+  subTotal: number;
+  taxRate: number;
+  hsnCode: string;
+  periodFrom: string;
+  periodTo: string;
+}
+
+const nonNeg = (v: unknown): number => Math.max(0, Number(v) || 0);
+
+export function computeShipmentSummary(invoice: InvoiceData): ShipmentSummary {
+  const rows = invoice.shipments ?? [];
+  const charges = { ...EMPTY_SHIPMENT_CHARGES, ...(invoice.shipmentCharges ?? {}) };
+  const freightTotal = round2(rows.reduce((s, r) => s + nonNeg(r.amount), 0));
+  const other = round2(nonNeg(charges.other));
+  const fov = round2(nonNeg(charges.fov));
+  const oda = round2(nonNeg(charges.oda));
+  const docket = round2(nonNeg(charges.docket));
+  const fuelPercent = nonNeg(charges.fuelPercent);
+  const fuelAmount = round2((freightTotal * fuelPercent) / 100);
+  const dates = rows.map((r) => r.bookDate).filter(Boolean).sort();
+
+  return {
+    rows,
+    totalPcs: rows.reduce((s, r) => s + nonNeg(r.pcs), 0),
+    totalActualWeight: round2(rows.reduce((s, r) => s + nonNeg(r.actualWeight), 0)),
+    totalChargedWeight: round2(rows.reduce((s, r) => s + nonNeg(r.chargedWeight), 0)),
+    totalVehicleCharges: round2(rows.reduce((s, r) => s + nonNeg(r.vehicleCharges), 0)),
+    freightTotal,
+    other,
+    fov,
+    oda,
+    fuelPercent,
+    fuelAmount,
+    docket,
+    subTotal: round2(freightTotal + other + fov + oda + fuelAmount + docket),
+    taxRate: invoice.shipmentTaxRate ?? 18,
+    hsnCode: (invoice.shipmentHsn ?? DEFAULT_SHIPMENT_HSN).trim(),
+    periodFrom: invoice.periodFrom || dates[0] || '',
+    periodTo: invoice.periodTo || dates[dates.length - 1] || '',
+  };
+}
+
+/**
+ * The lines GST is charged on. An AWB-wise invoice is taxed on its freight
+ * total plus each non-zero surcharge; any other invoice on its line items.
+ */
+export function getBillableItems(invoice: InvoiceData): LineItem[] {
+  if (!isShipmentInvoice(invoice)) return invoice.items;
+  const s = computeShipmentSummary(invoice);
+  const line = (key: string, name: string, amount: number): LineItem => ({
+    id: `shipment-${key}`,
+    name,
+    hsnCode: s.hsnCode,
+    isService: true,
+    quantity: 1,
+    unit: 'NOS',
+    unitPrice: amount,
+    discountPercent: 0,
+    taxRate: s.taxRate,
+    cessRate: 0,
+  });
+  const lines = [
+    line('freight', `Freight Charges (${s.rows.length} AWB)`, s.freightTotal),
+    line('other', 'Other Charge', s.other),
+    line('fov', 'FOV Charges', s.fov),
+    line('oda', 'ODA Charges', s.oda),
+    line('fuel', `Fuel Charges ${s.fuelPercent}%`, s.fuelAmount),
+    line('docket', 'Docket Charges', s.docket),
+  ];
+  return lines.filter((l, idx) => idx === 0 || l.unitPrice > 0);
+}
+
+export function formatSlashDate(dateStr: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : dateStr || '';
 }
 
 export function computeInvoice(invoice: InvoiceData): {
@@ -23,7 +153,7 @@ export function computeInvoice(invoice: InvoiceData): {
   let igstTotal = 0;
   let cessTotal = 0;
 
-  const computedItems: ComputedLineItem[] = invoice.items.map((item) => {
+  const computedItems: ComputedLineItem[] = getBillableItems(invoice).map((item) => {
     const qty = Math.max(0, Number(item.quantity) || 0);
     const price = Math.max(0, Number(item.unitPrice) || 0);
     const discPct = Math.min(100, Math.max(0, Number(item.discountPercent) || 0));

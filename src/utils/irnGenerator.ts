@@ -1,6 +1,6 @@
 import QRCode from 'qrcode';
 import { InvoiceData, IrnDetails } from '../types/invoice';
-import { computeInvoice } from './invoiceMath';
+import { computeInvoice, getBillableItems } from './invoiceMath';
 
 async function sha256Hex(input: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -35,7 +35,7 @@ export function computeInvoiceFingerprint(invoice: InvoiceData): string {
     invoice.financialYear,
     invoice.placeOfSupplyCode,
     totals.grandTotal.toFixed(2),
-    invoice.items.length,
+    getBillableItems(invoice).length,
   ].join('|');
 }
 
@@ -144,7 +144,8 @@ export async function generateIrnForInvoice(invoice: InvoiceData): Promise<IrnDe
   const ackNo = `1126${numericDigits}`;
   const ackDate = new Date().toISOString();
 
-  const mainHsn = invoice.items[0]?.hsnCode || '998314';
+  const billableItems = getBillableItems(invoice);
+  const mainHsn = billableItems[0]?.hsnCode || '998314';
 
   const signedQrPayloadObj = {
     SellerGstin: sellerGstin,
@@ -153,7 +154,7 @@ export async function generateIrnForInvoice(invoice: InvoiceData): Promise<IrnDe
     DocTyp: invoice.docType,
     DocDt: invoice.issueDate,
     TotInvVal: totals.grandTotal,
-    ItemCnt: invoice.items.length,
+    ItemCnt: billableItems.length,
     MainHsnCode: mainHsn,
     Irn: irn,
     IrnDt: ackDate,

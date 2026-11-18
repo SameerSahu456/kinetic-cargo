@@ -71,6 +71,32 @@ export interface LineItem {
   cessRate: number;
 }
 
+// One consignment on an AWB-wise courier/cargo bill.
+export interface ShipmentRow {
+  id: string;
+  bookDate: string; // ISO yyyy-mm-dd
+  awbNo: string;
+  bookingBranch: string;
+  destination: string;
+  mode?: string; // e.g. AIR / SURFACE
+  pcs: number;
+  actualWeight: number;
+  chargedWeight: number;
+  rate: number;
+  vehicleCharges?: number;
+  amount: number; // normally chargedWeight x rate + vehicleCharges, editable for minimum charges
+}
+
+export interface ShipmentCharges {
+  other: number;
+  fov: number;
+  oda: number;
+  fuelPercent: number; // % of the freight total
+  docket: number;
+}
+
+export type BillingMode = 'items' | 'shipments';
+
 export interface ComputedLineItem extends LineItem {
   grossAmount: number;
   discountAmount: number;
@@ -159,6 +185,14 @@ export interface InvoiceData {
   buyer: PartyDetails;
   dispatch: DispatchDetails;
   items: LineItem[];
+  // 'shipments' bills AWB-wise from `shipments`; absent/'items' uses `items`.
+  billingMode?: BillingMode;
+  shipments?: ShipmentRow[];
+  shipmentCharges?: ShipmentCharges;
+  shipmentHsn?: string;
+  shipmentTaxRate?: number;
+  periodFrom?: string; // ISO date; defaults to the earliest book date
+  periodTo?: string; // ISO date; defaults to the latest book date
   bank: BankDetails;
   notes: string;
   terms: string;

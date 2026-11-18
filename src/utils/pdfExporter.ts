@@ -5,8 +5,10 @@ import {
   formatMoney,
   formatShortDate,
   groupItemsByHsn,
+  isShipmentInvoice,
   numberToCurrencyWords,
 } from './invoiceMath';
+import { renderShipmentInvoicePages } from './shipmentPdf';
 
 function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace('#', '');
@@ -255,25 +257,15 @@ function renderGstStandardInvoicePage(doc: jsPDF, invoice: InvoiceData, brand: B
   doc.text(`State Name  : ${invoice.buyer.stateName}, Code : ${invoice.buyer.stateCode}`, margin + 2, lY);
   lY += 3;
 
-  // Right 50% Metadata Grid (6 rows of 9.5mm + Terms of Delivery)
+  // Right 50% Metadata Grid
   const metaRowH = 9.2;
   const metaRows: [string, string, string, string, boolean?][] = [
     ['Invoice No.', invoice.invoiceNumber, 'Dated', formatShortDate(invoice.issueDate), true],
-    ['Delivery Note', invoice.deliveryNote || '', 'Mode/Terms of Payment', invoice.paymentTerms || '15 Days / NEFT'],
-    ['Reference No. & Date.', invoice.poNumber || '', 'Other References', invoice.otherReferences || ''],
-    ["Buyer's Order No.", invoice.poNumber || '', 'Dated', invoice.poNumber ? formatShortDate(invoice.issueDate) : ''],
-    ['AWB No.', invoice.awbNumber || '', 'Dispatch Doc No.', invoice.dispatch.ewayBillNo || ''],
-    [
-      'Dispatched through',
-      invoice.dispatch.enabled
-        ? [invoice.dispatch.transportMode, invoice.dispatch.vehicleNumber].filter(Boolean).join(' · ')
-        : '',
-      'Destination',
-      invoice.buyer.city || '',
-    ],
+    ['Mode/Terms of Payment', invoice.paymentTerms || '15 Days / NEFT', 'Reference No. & Date.', invoice.poNumber || ''],
+    ['Dispatch Doc No.', invoice.dispatch.ewayBillNo || '', '', ''],
   ];
 
-  const rightMinBottom = boxTopY + metaRows.length * metaRowH + 16;
+  const rightMinBottom = boxTopY + metaRows.length * metaRowH;
   const topBottomY = Math.max(lY, rightMinBottom);
 
   // Draw Left Horizontal Separators
@@ -303,18 +295,6 @@ function renderGstStandardInvoicePage(doc: jsPDF, invoice: InvoiceData, brand: B
   doc.line(rMidX, boxTopY, rMidX, rY);
   // Vertical divider between left & right 50%
   doc.line(midX, boxTopY, midX, topBottomY);
-
-  // Terms of Delivery cell
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.2);
-  doc.setTextColor(70, 70, 76);
-  doc.text('Terms of Delivery', midX + 2, rY + 3.6);
-  const termsDeliveryText = invoice.termsOfDelivery || invoice.notes || '';
-  if (termsDeliveryText) {
-    doc.setFontSize(7.8);
-    doc.setTextColor(30, 30, 34);
-    doc.text(doc.splitTextToSize(termsDeliveryText, rightHalfW - 4).slice(0, 3), midX + 2, rY + 7.8);
-  }
 
   // Horizontal line ending Upper Split Box
   doc.line(margin, topBottomY, rightEdge, topBottomY);
@@ -698,7 +678,11 @@ function stampCancelled(doc: jsPDF, fromPage: number, toPage: number): void {
 
 function renderInvoicePage(doc: jsPDF, invoice: InvoiceData, brand: BrandProfile): void {
   const firstPage = doc.getNumberOfPages();
-  renderGstStandardInvoicePage(doc, invoice, brand);
+  if (isShipmentInvoice(invoice)) {
+    renderShipmentInvoicePages(doc, invoice, brand);
+  } else {
+    renderGstStandardInvoicePage(doc, invoice, brand);
+  }
   if (invoice.cancelledAt) stampCancelled(doc, firstPage, doc.getNumberOfPages());
 }
 

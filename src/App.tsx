@@ -13,8 +13,10 @@ import {
   createCentaurOctoberInvoice,
   createSampleInvoice,
   createSampleReceipt,
+  createSuperKinetic758Invoice,
   DEFAULT_BRAND_PROFILE,
   DEFAULT_RECIPIENTS,
+  SUPER_KINETIC_758_INVOICE_ID,
 } from './data/presets';
 import {
   AuthSession,
@@ -25,7 +27,7 @@ import {
   WorkspaceView,
 } from './types/invoice';
 import { getCurrentSession, signOutWorkspace } from './utils/auth';
-import { computeInvoice } from './utils/invoiceMath';
+import { computeInvoice, createShipmentRow } from './utils/invoiceMath';
 import { cancelInvoice, issueIrn } from './utils/irnGenerator';
 
 const STORAGE_BRAND_KEY = 'kinetic_cargo_brand_profile_v1';
@@ -33,6 +35,7 @@ const STORAGE_LEDGER_KEY = 'kinetic_cargo_invoice_ledger_v1';
 const STORAGE_RECIPIENTS_KEY = 'kinetic_cargo_recipients_v1';
 const STORAGE_RECEIPTS_KEY = 'kinetic_cargo_receipts_v1';
 const STORAGE_CENTAUR_SEEDED_KEY = 'kinetic_cargo_centaur_0934_seeded_v2';
+const STORAGE_SK758_SEEDED_KEY = 'kinetic_cargo_super_kinetic_758_seeded_v1';
 
 // Account number of the old placeholder bank that shipped as sample data.
 const LEGACY_SAMPLE_ACCOUNT = '50200048192044';
@@ -74,8 +77,19 @@ function withCentaurInvoice(list: InvoiceData[], brand: BrandProfile): InvoiceDa
   return [createCentaurOctoberInvoice(brand), ...list];
 }
 
+// Adds the reference invoice 758/25-26 once, the same way.
+function withSuperKinetic758Invoice(list: InvoiceData[]): InvoiceData[] {
+  try {
+    if (localStorage.getItem(STORAGE_SK758_SEEDED_KEY) === '1') return list;
+  } catch {
+    // ignore storage errors
+  }
+  if (list.some((inv) => inv.id === SUPER_KINETIC_758_INVOICE_ID)) return list;
+  return [createSuperKinetic758Invoice(), ...list];
+}
+
 function loadInitialLedger(brand: BrandProfile): InvoiceData[] {
-  return withCentaurInvoice(loadStoredLedger(brand), brand);
+  return withSuperKinetic758Invoice(withCentaurInvoice(loadStoredLedger(brand), brand));
 }
 
 function loadStoredLedger(brand: BrandProfile): InvoiceData[] {
@@ -119,6 +133,17 @@ function loadInitialReceipts(brand: BrandProfile): ReceiptData[] {
   return [createSampleReceipt(brand)];
 }
 
+// New invoices are billed AWB-wise: one row per consignment.
+function startAwbWise(invoice: InvoiceData): void {
+  invoice.docType = 'INV';
+  invoice.supplyType = 'B2B';
+  invoice.currency = 'INR';
+  invoice.dispatch = { ...invoice.dispatch, enabled: false };
+  invoice.billingMode = 'shipments';
+  invoice.shipments = [createShipmentRow({ bookDate: invoice.issueDate })];
+  invoice.awbNumber = '';
+}
+
 const VIEW_LABELS: Record<WorkspaceView, string> = {
   ledger: 'Invoice Ledger',
   recipients: 'Recipient Master',
@@ -154,6 +179,9 @@ export default function App() {
       // Mark as seeded only once the invoice has really been in the ledger.
       if (ledger.some((inv) => inv.id === CENTAUR_OCT_2026_INVOICE_ID)) {
         localStorage.setItem(STORAGE_CENTAUR_SEEDED_KEY, '1');
+      }
+      if (ledger.some((inv) => inv.id === SUPER_KINETIC_758_INVOICE_ID)) {
+        localStorage.setItem(STORAGE_SK758_SEEDED_KEY, '1');
       }
     } catch {
       // ignore quota errors
@@ -207,6 +235,7 @@ export default function App() {
         cessRate: 0,
       },
     ];
+    startAwbWise(fresh);
     setEditingInvoice(fresh);
   };
 
@@ -315,6 +344,7 @@ export default function App() {
       email: rec.email,
       phone: rec.phone,
     };
+    startAwbWise(fresh);
     setEditingInvoice(fresh);
   };
 
