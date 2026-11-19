@@ -25,7 +25,7 @@ const INPUT =
   'w-full px-2 py-1.5 text-[12.5px] bg-white border border-black/[0.1] rounded-md text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/15 transition-all duration-150';
 const LABEL = 'block text-[11.5px] font-medium text-[#6E6E73] mb-1.5';
 const ROW_GRID =
-  'grid grid-cols-[28px_128px_minmax(110px,1.3fr)_minmax(84px,1fr)_minmax(96px,1.1fr)_76px_56px_72px_72px_64px_84px_92px_28px] gap-1.5 items-center';
+  'grid grid-cols-[28px_128px_minmax(110px,1.3fr)_minmax(84px,1fr)_minmax(96px,1.1fr)_76px_56px_72px_72px_64px_92px_28px] gap-1.5 items-center';
 
 const toNum = (v: string) => parseFloat(v) || 0;
 
@@ -49,14 +49,11 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
         if ('actualWeight' in patch && row.chargedWeight === row.actualWeight) {
           next.chargedWeight = next.actualWeight;
         }
-        const vehicle = Number(next.vehicleCharges) || 0;
         if (
           !('amount' in patch) &&
-          (next.chargedWeight !== row.chargedWeight ||
-            next.rate !== row.rate ||
-            vehicle !== (Number(row.vehicleCharges) || 0))
+          (next.chargedWeight !== row.chargedWeight || next.rate !== row.rate)
         ) {
-          next.amount = round2(next.chargedWeight * next.rate + vehicle);
+          next.amount = round2(next.chargedWeight * next.rate);
         }
         return next;
       })
@@ -106,6 +103,7 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
     onPatch({ shipmentCharges: { ...charges, [key]: value } });
 
   const chargeFields: [keyof ShipmentCharges, string][] = [
+    ['vehicle', 'Vehicle Charges'],
     ['other', 'Other Charge'],
     ['fov', 'FOV Charges'],
     ['oda', 'ODA Charges'],
@@ -164,7 +162,7 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
 
       {/* Shipment rows */}
       <div className="overflow-x-auto -mx-1 px-1">
-        <div className="min-w-[1030px] space-y-1.5">
+        <div className="min-w-[940px] space-y-1.5">
           <div className={`${ROW_GRID} text-[11px] font-medium text-[#6E6E73]`}>
             <span>Sr</span>
             <span>Book Date</span>
@@ -176,7 +174,6 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
             <span className="text-right">Actual Wt</span>
             <span className="text-right">Weight</span>
             <span className="text-right">Rate</span>
-            <span className="text-right">Vehicle Chg</span>
             <span className="text-right">Amount</span>
             <span />
           </div>
@@ -229,7 +226,6 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
                   ['actualWeight', 'Actual weight'],
                   ['chargedWeight', 'Charged weight'],
                   ['rate', 'Rate'],
-                  ['vehicleCharges', 'Vehicle charges'],
                   ['amount', 'Amount'],
                 ] as [keyof ShipmentRow, string][]
               ).map(([key, label]) => (
@@ -260,13 +256,12 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
             <div className={`${ROW_GRID} pt-1.5 border-t border-black/[0.08] text-[12px] font-medium tabular-nums`}>
               <span />
               <span className="col-span-5 text-[#6E6E73]">
-                {rows.length} AWB · amount = Weight × Rate + Vehicle Chg, and can be overridden
+                {rows.length} AWB · amount = Weight × Rate, and can be overridden
               </span>
               <span className="text-right pr-2">{summary.totalPcs}</span>
               <span className="text-right pr-2">{summary.totalActualWeight}</span>
               <span className="text-right pr-2">{summary.totalChargedWeight}</span>
               <span />
-              <span className="text-right pr-2">{summary.totalVehicleCharges.toFixed(2)}</span>
               <span className="text-right pr-2">{summary.freightTotal.toFixed(2)}</span>
               <span />
             </div>
@@ -327,7 +322,7 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
       )}
 
       {/* Additional charges */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         {chargeFields.map(([key, label]) => (
           <div key={key}>
             <label className={LABEL}>{label}</label>
@@ -346,8 +341,7 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
       <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-[#FAFAFC] border border-black/[0.07] text-[12.5px] tabular-nums">
         <span className="text-[#6E6E73]">
           Total {formatMoney(summary.freightTotal, invoice.currency)}
-          {summary.totalVehicleCharges > 0 &&
-            ` (incl. vehicle ${formatMoney(summary.totalVehicleCharges, invoice.currency)})`}
+          {summary.vehicle > 0 && ` · Vehicle ${formatMoney(summary.vehicle, invoice.currency)}`}
           {summary.fuelAmount > 0 && ` · Fuel ${formatMoney(summary.fuelAmount, invoice.currency)}`}
         </span>
         <span className="font-semibold text-[#1D1D1F]">

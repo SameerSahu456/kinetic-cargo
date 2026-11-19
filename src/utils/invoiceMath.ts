@@ -16,6 +16,7 @@ export function round2(val: number): number {
 export const DEFAULT_SHIPMENT_HSN = '996812';
 
 export const EMPTY_SHIPMENT_CHARGES: ShipmentCharges = {
+  vehicle: 0,
   other: 0,
   fov: 0,
   oda: 0,
@@ -39,7 +40,6 @@ export function createShipmentRow(patch: Partial<ShipmentRow> = {}): ShipmentRow
     actualWeight: 0,
     chargedWeight: 0,
     rate: 0,
-    vehicleCharges: 0,
     amount: 0,
     ...patch,
   };
@@ -50,8 +50,8 @@ export interface ShipmentSummary {
   totalPcs: number;
   totalActualWeight: number;
   totalChargedWeight: number;
-  totalVehicleCharges: number;
   freightTotal: number;
+  vehicle: number;
   other: number;
   fov: number;
   oda: number;
@@ -71,6 +71,7 @@ export function computeShipmentSummary(invoice: InvoiceData): ShipmentSummary {
   const rows = invoice.shipments ?? [];
   const charges = { ...EMPTY_SHIPMENT_CHARGES, ...(invoice.shipmentCharges ?? {}) };
   const freightTotal = round2(rows.reduce((s, r) => s + nonNeg(r.amount), 0));
+  const vehicle = round2(nonNeg(charges.vehicle));
   const other = round2(nonNeg(charges.other));
   const fov = round2(nonNeg(charges.fov));
   const oda = round2(nonNeg(charges.oda));
@@ -84,15 +85,15 @@ export function computeShipmentSummary(invoice: InvoiceData): ShipmentSummary {
     totalPcs: rows.reduce((s, r) => s + nonNeg(r.pcs), 0),
     totalActualWeight: round2(rows.reduce((s, r) => s + nonNeg(r.actualWeight), 0)),
     totalChargedWeight: round2(rows.reduce((s, r) => s + nonNeg(r.chargedWeight), 0)),
-    totalVehicleCharges: round2(rows.reduce((s, r) => s + nonNeg(r.vehicleCharges), 0)),
     freightTotal,
+    vehicle,
     other,
     fov,
     oda,
     fuelPercent,
     fuelAmount,
     docket,
-    subTotal: round2(freightTotal + other + fov + oda + fuelAmount + docket),
+    subTotal: round2(freightTotal + vehicle + other + fov + oda + fuelAmount + docket),
     taxRate: invoice.shipmentTaxRate ?? 18,
     hsnCode: (invoice.shipmentHsn ?? DEFAULT_SHIPMENT_HSN).trim(),
     periodFrom: invoice.periodFrom || dates[0] || '',
@@ -121,6 +122,7 @@ export function getBillableItems(invoice: InvoiceData): LineItem[] {
   });
   const lines = [
     line('freight', `Freight Charges (${s.rows.length} AWB)`, s.freightTotal),
+    line('vehicle', 'Vehicle Charges', s.vehicle),
     line('other', 'Other Charge', s.other),
     line('fov', 'FOV Charges', s.fov),
     line('oda', 'ODA Charges', s.oda),

@@ -10,7 +10,6 @@ export const SHIPMENT_SHEET_COLUMNS = [
   'Destination',
   'Weight',
   'Rate',
-  'Vehicle Charge',
   'Mode',
   'PCS',
   'Amount',
@@ -23,7 +22,6 @@ type Field =
   | 'destination'
   | 'weight'
   | 'rate'
-  | 'vehicle'
   | 'mode'
   | 'pcs'
   | 'amount';
@@ -35,7 +33,6 @@ const FIELD_ORDER: Field[] = [
   'destination',
   'weight',
   'rate',
-  'vehicle',
   'mode',
   'pcs',
   'amount',
@@ -47,7 +44,8 @@ function headerField(cell: Cell): Field | null {
   const h = String(cell ?? '').toLowerCase().replace(/[^a-z]/g, '');
   if (!h) return null;
   if (h.includes('awb') || h.includes('docket') || h.includes('consignment')) return 'awb';
-  if (h.includes('vehicle')) return 'vehicle';
+  // Vehicle charges are billed once per invoice, so a per-row column is ignored.
+  if (h.includes('vehicle')) return null;
   if (h.includes('date')) return 'date';
   if (h.startsWith('dest') || h === 'to') return 'destination';
   if (h.includes('from') || h.includes('branch') || h.includes('origin')) return 'from';
@@ -121,7 +119,6 @@ export function shipmentRowsFromGrid(grid: Cell[][]): ShipmentRow[] {
 
     const weight = toNumber(cell(row, 'weight'));
     const rate = toNumber(cell(row, 'rate'));
-    const vehicleCharges = toNumber(cell(row, 'vehicle'));
     const amountCell = cell(row, 'amount');
     rows.push(
       createShipmentRow({
@@ -134,9 +131,7 @@ export function shipmentRowsFromGrid(grid: Cell[][]): ShipmentRow[] {
         actualWeight: weight,
         chargedWeight: weight,
         rate,
-        vehicleCharges,
-        amount:
-          toText(amountCell) === '' ? round2(weight * rate + vehicleCharges) : round2(toNumber(amountCell)),
+        amount: toText(amountCell) === '' ? round2(weight * rate) : round2(toNumber(amountCell)),
       })
     );
   });

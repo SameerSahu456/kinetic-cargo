@@ -27,6 +27,7 @@ export const ShipmentInvoiceSheet: React.FC<ShipmentInvoiceSheetProps> = ({ invo
 
   const totalRows: [string, number, boolean?][] = [
     ['Total', summary.freightTotal],
+    ['Vehicle Charges', summary.vehicle],
     ['Other Charge', summary.other],
     ['Fov.Charges', summary.fov],
     ['Oda.charges', summary.oda],
@@ -152,11 +153,6 @@ export const ShipmentInvoiceSheet: React.FC<ShipmentInvoiceSheetProps> = ({ invo
               </th>
               <th className={`${CELL} w-[50px]`}>Weight</th>
               <th className={`${CELL} w-10`}>Rate</th>
-              <th className={`${CELL} w-[54px]`}>
-                Vehicle
-                <br />
-                Chg
-              </th>
               <th className={`${CELL} w-[78px]`}>Amount</th>
             </tr>
           </thead>
@@ -173,13 +169,12 @@ export const ShipmentInvoiceSheet: React.FC<ShipmentInvoiceSheetProps> = ({ invo
                 <td className={`${CELL} text-right`}>{Number(row.actualWeight) || 0}</td>
                 <td className={`${CELL} text-right`}>{Number(row.chargedWeight) || 0}</td>
                 <td className={`${CELL} text-right`}>{money(row.rate)}</td>
-                <td className={`${CELL} text-right`}>{money(row.vehicleCharges ?? 0)}</td>
                 <td className={`${CELL} text-right`}>{money(row.amount)}</td>
               </tr>
             ))}
             {summary.rows.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-2 py-6 text-center text-[#6E6E73]">
+                <td colSpan={11} className="px-2 py-6 text-center text-[#6E6E73]">
                   No shipments added yet.
                 </td>
               </tr>

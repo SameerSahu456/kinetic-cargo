@@ -83,11 +83,11 @@ export interface ShipmentRow {
   actualWeight: number;
   chargedWeight: number;
   rate: number;
-  vehicleCharges?: number;
-  amount: number; // normally chargedWeight x rate + vehicleCharges, editable for minimum charges
+  amount: number; // normally chargedWeight x rate, editable for minimum charges
 }
 
 export interface ShipmentCharges {
+  vehicle: number; // one vehicle charge for the whole invoice
   other: number;
   fov: number;
   oda: number;

@@ -23,9 +23,9 @@ const AMOUNT_X = 179;
 const ROW_H = 5;
 const TOTAL_ROW_H = 5.5;
 
-// Column edges: SrNo, Book Date, Awb No., Booking Branch, Destination, Pcs,
-// Mode, Pcs, Actual Wt, Weight, Rate, Vehicle Chg, Amount.
-const COLS = [LEFT, 18, 36, 60, 82, 105, 121, 130, 142, 154, 165, AMOUNT_X, RIGHT];
+// Column edges: SrNo, Book Date, Awb No., Booking Branch, Destination, Mode,
+// Pcs, Actual Wt, Weight, Rate, Amount.
+const COLS = [LEFT, 18, 36, 62, 87, 113, 129, 139, 152, 165, AMOUNT_X, RIGHT];
 
 export function shipmentDocTitle(docType: InvoiceData['docType']): string {
   if (docType === 'CRN') return 'CREDIT NOTE';
@@ -211,7 +211,6 @@ function drawPageHeader(
     ['Actual', 'Wt'],
     ['Weight'],
     ['Rate'],
-    ['Vehicle', 'Chg'],
     ['Amount'],
   ];
   heads.forEach((lines, idx) => {
@@ -264,7 +263,6 @@ export function renderShipmentInvoicePages(doc: jsPDF, invoice: InvoiceData, bra
     doc.text(plain(row.actualWeight), COLS[8] - 1.5, ty, { align: 'right' });
     doc.text(plain(row.chargedWeight), COLS[9] - 1.5, ty, { align: 'right' });
     doc.text(money(Number(row.rate) || 0), COLS[10] - 1.5, ty, { align: 'right' });
-    doc.text(money(Number(row.vehicleCharges) || 0), COLS[11] - 1.5, ty, { align: 'right' });
     doc.text(money(Number(row.amount) || 0), RIGHT - 1.5, ty, { align: 'right' });
     y += ROW_H;
   });
@@ -276,6 +274,7 @@ export function renderShipmentInvoicePages(doc: jsPDF, invoice: InvoiceData, bra
   const first = items[0];
   const totalRows: [string, number, boolean?][] = [
     ['Total', summary.freightTotal],
+    ['Vehicle Charges', summary.vehicle],
     ['Other Charge', summary.other],
     ['Fov.Charges', summary.fov],
     ['Oda.charges', summary.oda],
