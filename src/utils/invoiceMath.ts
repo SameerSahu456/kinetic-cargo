@@ -15,6 +15,8 @@ export function round2(val: number): number {
 
 export const DEFAULT_SHIPMENT_HSN = '996812';
 
+const nonNeg = (v: unknown): number => Math.max(0, Number(v) || 0);
+
 export const EMPTY_SHIPMENT_CHARGES: ShipmentCharges = {
   vehicle: 0,
   other: 0,
@@ -91,6 +93,68 @@ export function createShipmentRow(patch: Partial<ShipmentRow> = {}): ShipmentRow
   };
 }
 
+/**
+ * Moves an older line-item invoice onto the AWB-wise layout: every line
+ * becomes a shipment row carrying its taxable value, and a "fuel @ N%" line
+ * becomes the fuel percentage. Invoices whose lines carry different GST rates
+ * or a cess are left alone, because one rate per bill could not reproduce
+ * their tax.
+ */
+export function toShipmentLayout(invoice: InvoiceData): InvoiceData {
+  if (isShipmentInvoice(invoice)) return invoice;
+  const items = invoice.items ?? [];
+  const taxRate = items[0]?.taxRate ?? 18;
+  if (items.some((i) => i.taxRate !== taxRate || (Number(i.cessRate) || 0) > 0)) return invoice;
+
+  const amountOf = (i: LineItem) =>
+    round2(nonNeg(i.quantity) * nonNeg(i.unitPrice) * (1 - Math.min(100, nonNeg(i.discountPercent)) / 100));
+  const fuelPct = (i: LineItem): number | null => {
+    const m = /fuel/i.test(i.name) ? /@\s*([\d.]+)\s*%/.exec(i.name) : null;
+    return m ? Number(m[1]) : null;
+  };
+
+  const freightItems = items.filter((i) => fuelPct(i) === null);
+  const freight = round2(freightItems.reduce((s, i) => s + amountOf(i), 0));
+  // A fuel line is folded into the percentage only when it matches exactly.
+  const fuelItems = items.filter((i) => fuelPct(i) !== null);
+  const fuel = fuelItems.length === 1 ? fuelItems[0] : null;
+  const foldFuel = fuel !== null && round2((freight * fuelPct(fuel)!) / 100) === amountOf(fuel);
+  const rowItems = foldFuel ? freightItems : items;
+
+  const shipments = rowItems.map((item, idx) => {
+    const text = `${item.name} ${item.description ?? ''}`;
+    const awb = /^AWB\s+(\S+)/i.exec(item.name);
+    const date = /(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})/.exec(item.description ?? '');
+    const pad = (v: string) => v.padStart(2, '0');
+    const weight = /Weight\s+([\d.]+)/i.exec(text);
+    const chargedWeight = weight ? Number(weight[1]) : 0;
+    const amount = amountOf(item);
+    return createShipmentRow({
+      id: `shp-${invoice.id}-${idx + 1}`,
+      bookDate: date
+        ? `${date[3].length === 2 ? `20${date[3]}` : date[3]}-${pad(date[2])}-${pad(date[1])}`
+        : invoice.issueDate,
+      awbNo: awb ? awb[1] : '',
+      // Lines that are not consignments keep their description here.
+      destination: awb ? item.name.slice(item.name.lastIndexOf(',') + 1).trim() : item.name,
+      mode: /Mode\s+(\S+)/i.exec(text)?.[1] ?? '',
+      pcs: nonNeg(item.quantity),
+      chargedWeight,
+      rate: chargedWeight > 0 ? round2(amount / chargedWeight) : 0,
+      amount,
+    });
+  });
+
+  return {
+    ...invoice,
+    billingMode: 'shipments',
+    shipments,
+    shipmentCharges: { ...EMPTY_SHIPMENT_CHARGES, fuelPercent: foldFuel ? fuelPct(fuel!)! : 0 },
+    shipmentHsn: (items[0]?.hsnCode || DEFAULT_SHIPMENT_HSN).trim(),
+    shipmentTaxRate: taxRate,
+  };
+}
+
 export interface ShipmentSummary {
   rows: ShipmentRow[];
   totalPcs: number;
@@ -109,8 +173,6 @@ export interface ShipmentSummary {
   periodFrom: string;
   periodTo: string;
 }
-
-const nonNeg = (v: unknown): number => Math.max(0, Number(v) || 0);
 
 export function computeShipmentSummary(invoice: InvoiceData): ShipmentSummary {
   const rows = invoice.shipments ?? [];

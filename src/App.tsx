@@ -31,6 +31,7 @@ import {
   computeInvoice,
   createShipmentRow,
   nextInvoiceNumber,
+  toShipmentLayout,
   toSkInvoiceNumber,
   withSkInvoiceNumbers,
 } from './utils/invoiceMath';
@@ -95,10 +96,10 @@ function withSuperKinetic758Invoice(list: InvoiceData[]): InvoiceData[] {
 }
 
 function loadInitialLedger(brand: BrandProfile): InvoiceData[] {
-  // Invoices numbered before the SK series are moved onto it.
+  // Older invoices are moved onto the SK number series and the AWB-wise layout.
   return withSkInvoiceNumbers(
     withSuperKinetic758Invoice(withCentaurInvoice(loadStoredLedger(brand), brand))
-  );
+  ).map(toShipmentLayout);
 }
 
 function loadStoredLedger(brand: BrandProfile): InvoiceData[] {
