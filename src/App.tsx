@@ -27,7 +27,13 @@ import {
   WorkspaceView,
 } from './types/invoice';
 import { getCurrentSession, signOutWorkspace } from './utils/auth';
-import { computeInvoice, createShipmentRow } from './utils/invoiceMath';
+import {
+  computeInvoice,
+  createShipmentRow,
+  nextInvoiceNumber,
+  toSkInvoiceNumber,
+  withSkInvoiceNumbers,
+} from './utils/invoiceMath';
 import { cancelInvoice, issueIrn } from './utils/irnGenerator';
 
 const STORAGE_BRAND_KEY = 'kinetic_cargo_brand_profile_v1';
@@ -89,7 +95,10 @@ function withSuperKinetic758Invoice(list: InvoiceData[]): InvoiceData[] {
 }
 
 function loadInitialLedger(brand: BrandProfile): InvoiceData[] {
-  return withSuperKinetic758Invoice(withCentaurInvoice(loadStoredLedger(brand), brand));
+  // Invoices numbered before the SK series are moved onto it.
+  return withSkInvoiceNumbers(
+    withSuperKinetic758Invoice(withCentaurInvoice(loadStoredLedger(brand), brand))
+  );
 }
 
 function loadStoredLedger(brand: BrandProfile): InvoiceData[] {
@@ -125,7 +134,13 @@ function loadInitialReceipts(brand: BrandProfile): ReceiptData[] {
     const raw = localStorage.getItem(STORAGE_RECEIPTS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        // Keep receipts pointing at the renumbered (SK) invoices.
+        return (parsed as ReceiptData[]).map((r) => ({
+          ...r,
+          linkedInvoiceNumber: toSkInvoiceNumber(r.linkedInvoiceNumber),
+        }));
+      }
     }
   } catch {
     // ignore storage errors
@@ -215,10 +230,9 @@ export default function App() {
   };
 
   const handleCreateNewInvoice = () => {
-    const nextNum = ledger.length + 105;
     const fresh = createSampleInvoice(brand);
     fresh.id = `inv-${Date.now()}`;
-    fresh.invoiceNumber = `KC/26-27/0${nextNum}`;
+    fresh.invoiceNumber = nextInvoiceNumber(ledger);
     fresh.irn = null;
     fresh.items = [
       {
@@ -262,7 +276,7 @@ export default function App() {
     const copy: InvoiceData = {
       ...inv,
       id: `inv-${Date.now()}`,
-      invoiceNumber: `${inv.invoiceNumber}-COPY`,
+      invoiceNumber: nextInvoiceNumber(ledger),
       irn: null,
       cancelledIrns: undefined,
       createdAt: new Date().toISOString(),
@@ -324,10 +338,9 @@ export default function App() {
   };
 
   const handleCreateInvoiceForRecipient = (rec: RecipientRecord) => {
-    const nextNum = ledger.length + 105;
     const fresh = createSampleInvoice(brand);
     fresh.id = `inv-${Date.now()}`;
-    fresh.invoiceNumber = `KC/26-27/0${nextNum}`;
+    fresh.invoiceNumber = nextInvoiceNumber(ledger);
     fresh.irn = null;
     fresh.placeOfSupplyCode = rec.stateCode;
     fresh.placeOfSupplyName = rec.stateName;

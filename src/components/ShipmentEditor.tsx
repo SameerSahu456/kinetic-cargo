@@ -25,7 +25,7 @@ const INPUT =
   'w-full px-2 py-1.5 text-[12.5px] bg-white border border-black/[0.1] rounded-md text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/15 transition-all duration-150';
 const LABEL = 'block text-[11.5px] font-medium text-[#6E6E73] mb-1.5';
 const ROW_GRID =
-  'grid grid-cols-[28px_128px_minmax(110px,1.3fr)_minmax(84px,1fr)_minmax(96px,1.1fr)_76px_56px_72px_72px_64px_92px_28px] gap-1.5 items-center';
+  'grid grid-cols-[28px_128px_96px_minmax(120px,1fr)_minmax(120px,1fr)_76px_56px_72px_64px_92px_28px] gap-1.5 items-center';
 
 const toNum = (v: string) => parseFloat(v) || 0;
 
@@ -45,10 +45,6 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
       rows.map((row) => {
         if (row.id !== id) return row;
         const next = { ...row, ...patch };
-        // Charged weight follows the actual weight until it is set separately.
-        if ('actualWeight' in patch && row.chargedWeight === row.actualWeight) {
-          next.chargedWeight = next.actualWeight;
-        }
         if (
           !('amount' in patch) &&
           (next.chargedWeight !== row.chargedWeight || next.rate !== row.rate)
@@ -162,7 +158,7 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
 
       {/* Shipment rows */}
       <div className="overflow-x-auto -mx-1 px-1">
-        <div className="min-w-[940px] space-y-1.5">
+        <div className="min-w-[860px] space-y-1.5">
           <div className={`${ROW_GRID} text-[11px] font-medium text-[#6E6E73]`}>
             <span>Sr</span>
             <span>Book Date</span>
@@ -171,7 +167,6 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
             <span>Destination</span>
             <span>Mode</span>
             <span className="text-right">Pcs</span>
-            <span className="text-right">Actual Wt</span>
             <span className="text-right">Weight</span>
             <span className="text-right">Rate</span>
             <span className="text-right">Amount</span>
@@ -223,8 +218,7 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
               {(
                 [
                   ['pcs', 'Pieces'],
-                  ['actualWeight', 'Actual weight'],
-                  ['chargedWeight', 'Charged weight'],
+                  ['chargedWeight', 'Weight'],
                   ['rate', 'Rate'],
                   ['amount', 'Amount'],
                 ] as [keyof ShipmentRow, string][]
@@ -259,7 +253,6 @@ export const ShipmentEditor: React.FC<ShipmentEditorProps> = ({ invoice, onPatch
                 {rows.length} AWB · amount = Weight × Rate, and can be overridden
               </span>
               <span className="text-right pr-2">{summary.totalPcs}</span>
-              <span className="text-right pr-2">{summary.totalActualWeight}</span>
               <span className="text-right pr-2">{summary.totalChargedWeight}</span>
               <span />
               <span className="text-right pr-2">{summary.freightTotal.toFixed(2)}</span>

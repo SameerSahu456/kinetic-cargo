@@ -128,7 +128,6 @@ export function shipmentRowsFromGrid(grid: Cell[][]): ShipmentRow[] {
         destination: toText(cell(row, 'destination')),
         mode: toText(cell(row, 'mode')),
         pcs: toNumber(cell(row, 'pcs')),
-        actualWeight: weight,
         chargedWeight: weight,
         rate,
         amount: toText(amountCell) === '' ? round2(weight * rate) : round2(toNumber(amountCell)),

@@ -14,7 +14,7 @@ interface ShipmentInvoiceSheetProps {
 }
 
 const money = (v: number) => (Number(v) || 0).toFixed(2);
-const CELL = 'px-1.5 py-[3px] border-r border-black last:border-r-0';
+const CELL = 'px-1.5 py-[3px] text-center border-r border-black last:border-r-0';
 
 // On-screen version of the AWB-wise tax invoice (see utils/shipmentPdf.ts).
 export const ShipmentInvoiceSheet: React.FC<ShipmentInvoiceSheetProps> = ({ invoice, brand }) => {
@@ -137,20 +137,11 @@ export const ShipmentInvoiceSheet: React.FC<ShipmentInvoiceSheetProps> = ({ invo
             <tr className="border-b border-black font-bold text-center align-middle">
               <th className={`${CELL} w-9`}>SrNo.</th>
               <th className={`${CELL} w-[66px]`}>Book Date</th>
-              <th className={CELL}>Awb No.</th>
-              <th className={`${CELL} w-[66px]`}>
-                Booking
-                <br />
-                Branch
-              </th>
-              <th className={`${CELL} w-[84px]`}>Destination</th>
+              <th className={`${CELL} w-[70px]`}>Awb No.</th>
+              <th className={CELL}>Booking Branch</th>
+              <th className={CELL}>Destination</th>
               <th className={`${CELL} w-[46px]`}>Mode</th>
               <th className={`${CELL} w-10`}>Pcs</th>
-              <th className={`${CELL} w-[50px]`}>
-                Actual
-                <br />
-                Wt
-              </th>
               <th className={`${CELL} w-[50px]`}>Weight</th>
               <th className={`${CELL} w-10`}>Rate</th>
               <th className={`${CELL} w-[78px]`}>Amount</th>
@@ -165,16 +156,15 @@ export const ShipmentInvoiceSheet: React.FC<ShipmentInvoiceSheetProps> = ({ invo
                 <td className={`${CELL} uppercase`}>{row.bookingBranch}</td>
                 <td className={`${CELL} uppercase`}>{row.destination}</td>
                 <td className={`${CELL} uppercase`}>{row.mode ?? ''}</td>
-                <td className={`${CELL} text-center`}>{Number(row.pcs) || 0}</td>
-                <td className={`${CELL} text-right`}>{Number(row.actualWeight) || 0}</td>
-                <td className={`${CELL} text-right`}>{Number(row.chargedWeight) || 0}</td>
-                <td className={`${CELL} text-right`}>{money(row.rate)}</td>
-                <td className={`${CELL} text-right`}>{money(row.amount)}</td>
+                <td className={CELL}>{Number(row.pcs) || 0}</td>
+                <td className={CELL}>{Number(row.chargedWeight) || 0}</td>
+                <td className={CELL}>{money(row.rate)}</td>
+                <td className={CELL}>{money(row.amount)}</td>
               </tr>
             ))}
             {summary.rows.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-2 py-6 text-center text-[#6E6E73]">
+                <td colSpan={10} className="px-2 py-6 text-center text-[#6E6E73]">
                   No shipments added yet.
                 </td>
               </tr>

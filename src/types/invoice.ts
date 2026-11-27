@@ -80,7 +80,6 @@ export interface ShipmentRow {
   destination: string;
   mode?: string; // e.g. AIR / SURFACE
   pcs: number;
-  actualWeight: number;
   chargedWeight: number;
   rate: number;
   amount: number; // normally chargedWeight x rate, editable for minimum charges

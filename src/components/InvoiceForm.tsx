@@ -3,7 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, CheckCircle2, AlertCircle, UserPlus, Check } from 'lucide-react';
 import { INDIAN_STATES } from '../data/presets';
 import { InvoiceData, RecipientRecord } from '../types/invoice';
-import { getFinancialYear, isShipmentInvoice, validateGstin } from '../utils/invoiceMath';
+import {
+  getFinancialYear,
+  isShipmentInvoice,
+  validateGstin,
+  withInvoicePrefix,
+} from '../utils/invoiceMath';
 import { ShipmentEditor } from './ShipmentEditor';
 
 interface InvoiceFormProps {
@@ -138,9 +143,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                           <input
                             type="text"
                             value={invoice.invoiceNumber}
-                            onChange={(e) => updateField('invoiceNumber', e.target.value)}
+                            onChange={(e) => updateField('invoiceNumber', withInvoicePrefix(e.target.value))}
                             className={`${INPUT_CLASS} font-mono`}
-                            placeholder="INV/26-27/0104"
+                            placeholder="SK0001"
                           />
                         </div>
                         <div>

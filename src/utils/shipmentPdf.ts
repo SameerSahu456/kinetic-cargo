@@ -24,8 +24,8 @@ const ROW_H = 5;
 const TOTAL_ROW_H = 5.5;
 
 // Column edges: SrNo, Book Date, Awb No., Booking Branch, Destination, Mode,
-// Pcs, Actual Wt, Weight, Rate, Amount.
-const COLS = [LEFT, 18, 36, 62, 87, 113, 129, 139, 152, 165, AMOUNT_X, RIGHT];
+// Pcs, Weight, Rate, Amount.
+const COLS = [LEFT, 19, 38, 56, 90, 124, 140, 150, 164, AMOUNT_X, RIGHT];
 
 export function shipmentDocTitle(docType: InvoiceData['docType']): string {
   if (docType === 'CRN') return 'CREDIT NOTE';
@@ -208,7 +208,6 @@ function drawPageHeader(
     ['Destination'],
     ['Mode'],
     ['Pcs'],
-    ['Actual', 'Wt'],
     ['Weight'],
     ['Rate'],
     ['Amount'],
@@ -253,17 +252,22 @@ export function renderShipmentInvoicePages(doc: jsPDF, invoice: InvoiceData, bra
     const ty = y + 3.7;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text(String(idx + 1), COLS[0] + 1, ty);
-    doc.text(formatSlashDate(row.bookDate), COLS[1] + 1, ty);
-    doc.text(fit(doc, row.awbNo, COLS[3] - COLS[2] - 3), COLS[2] + 1.5, ty);
-    doc.text(fit(doc, row.bookingBranch.toUpperCase(), COLS[4] - COLS[3] - 3), COLS[3] + 1.5, ty);
-    doc.text(fit(doc, row.destination.toUpperCase(), COLS[5] - COLS[4] - 3), COLS[4] + 1.5, ty);
-    doc.text(fit(doc, (row.mode ?? '').toUpperCase(), COLS[6] - COLS[5] - 2), COLS[5] + 1.2, ty);
-    doc.text(plain(row.pcs), (COLS[6] + COLS[7]) / 2, ty, { align: 'center' });
-    doc.text(plain(row.actualWeight), COLS[8] - 1.5, ty, { align: 'right' });
-    doc.text(plain(row.chargedWeight), COLS[9] - 1.5, ty, { align: 'right' });
-    doc.text(money(Number(row.rate) || 0), COLS[10] - 1.5, ty, { align: 'right' });
-    doc.text(money(Number(row.amount) || 0), RIGHT - 1.5, ty, { align: 'right' });
+    const cells = [
+      String(idx + 1),
+      formatSlashDate(row.bookDate),
+      row.awbNo,
+      row.bookingBranch.toUpperCase(),
+      row.destination.toUpperCase(),
+      (row.mode ?? '').toUpperCase(),
+      plain(row.pcs),
+      plain(row.chargedWeight),
+      money(Number(row.rate) || 0),
+      money(Number(row.amount) || 0),
+    ];
+    cells.forEach((text, c) => {
+      const width = COLS[c + 1] - COLS[c];
+      doc.text(fit(doc, text, width - 2), COLS[c] + width / 2, ty, { align: 'center' });
+    });
     y += ROW_H;
   });
   drawColumnLines(doc, tableTop, y);

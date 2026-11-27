@@ -24,6 +24,53 @@ export const EMPTY_SHIPMENT_CHARGES: ShipmentCharges = {
   docket: 0,
 };
 
+export const INVOICE_PREFIX = 'SK';
+
+/** Forces an invoice number to start with the SK prefix. */
+export function withInvoicePrefix(value: string): string {
+  const v = value.toUpperCase().trimStart();
+  return v.startsWith(INVOICE_PREFIX) ? v : INVOICE_PREFIX + v.replace(/^S?K?/, '');
+}
+
+/** Converts an older invoice number to the SK series: KC/26-27/0104 -> SK/26-27/0104, 0934 -> SK0934. */
+export function toSkInvoiceNumber(value: string): string {
+  const v = (value || '').trim();
+  if (!v || v.toUpperCase().startsWith(INVOICE_PREFIX)) return v;
+  return INVOICE_PREFIX + (/^KC/i.test(v) ? v.slice(2) : v);
+}
+
+/** Renumbers every invoice that does not start with SK, keeping numbers unique. */
+export function withSkInvoiceNumbers(ledger: InvoiceData[]): InvoiceData[] {
+  const taken = new Set(
+    ledger
+      .map((inv) => inv.invoiceNumber.trim().toUpperCase())
+      .filter((n) => n.startsWith(INVOICE_PREFIX))
+  );
+  return ledger.map((inv) => {
+    const base = toSkInvoiceNumber(inv.invoiceNumber);
+    if (base === inv.invoiceNumber.trim()) return inv;
+    let next = base;
+    for (let n = 2; taken.has(next.toUpperCase()); n++) next = `${base}-${n}`;
+    taken.add(next.toUpperCase());
+    return { ...inv, invoiceNumber: next };
+  });
+}
+
+/** Next unused SK number: one past the highest SK<digits> number in the ledger. */
+export function nextInvoiceNumber(ledger: InvoiceData[]): string {
+  const used = new Set(ledger.map((inv) => inv.invoiceNumber.trim().toUpperCase()));
+  let seq = ledger.reduce((max, inv) => {
+    const m = /^SK(\d+)$/.exec(inv.invoiceNumber.trim().toUpperCase());
+    return m ? Math.max(max, Number(m[1])) : max;
+  }, 0);
+  let candidate: string;
+  do {
+    seq += 1;
+    candidate = `${INVOICE_PREFIX}${String(seq).padStart(4, '0')}`;
+  } while (used.has(candidate));
+  return candidate;
+}
+
 export function isShipmentInvoice(invoice: InvoiceData): boolean {
   return invoice.billingMode === 'shipments';
 }
@@ -37,7 +84,6 @@ export function createShipmentRow(patch: Partial<ShipmentRow> = {}): ShipmentRow
     destination: '',
     mode: '',
     pcs: 1,
-    actualWeight: 0,
     chargedWeight: 0,
     rate: 0,
     amount: 0,
@@ -48,7 +94,6 @@ export function createShipmentRow(patch: Partial<ShipmentRow> = {}): ShipmentRow
 export interface ShipmentSummary {
   rows: ShipmentRow[];
   totalPcs: number;
-  totalActualWeight: number;
   totalChargedWeight: number;
   freightTotal: number;
   vehicle: number;
@@ -83,7 +128,6 @@ export function computeShipmentSummary(invoice: InvoiceData): ShipmentSummary {
   return {
     rows,
     totalPcs: rows.reduce((s, r) => s + nonNeg(r.pcs), 0),
-    totalActualWeight: round2(rows.reduce((s, r) => s + nonNeg(r.actualWeight), 0)),
     totalChargedWeight: round2(rows.reduce((s, r) => s + nonNeg(r.chargedWeight), 0)),
     freightTotal,
     vehicle,
